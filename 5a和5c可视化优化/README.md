@@ -309,7 +309,7 @@ ax.legend(
 
 ## 05a和05c完整代码
 
-### 05a完整代码
+### 一、05a完整代码
 
 ```python
 # --- 图 5a: P-value 对比柱状图 ---
@@ -401,7 +401,7 @@ plt.savefig(os.path.join(IMG_DIR, "05a_pvalue_comparison.png"), dpi=150, bbox_in
 # plt.close()
 print("  [图] 05a_pvalue_comparison.png → p值对比图已保存")
 ```
-### 05c完整代码
+### 二、05c完整代码
 
 ```python
 # --- 图 5c: p值 vs 效应量散点图 ---
