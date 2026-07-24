@@ -1,7 +1,7 @@
 # 图5a和5c可视化优化  
 ## —— 图 05a（P‑value 柱状图）与图 05c（P‑value vs 效应量散点图）修正分析
 
-> 本报告基于 `02_practice.py` 中的可视化代码，对两张核心统计图表进行了完整的问题诊断、修正方案设计和效果验证，旨在为临床数据分析报告提供清晰、准确、专业的可视化范例。
+> 本报告基于 `02_practice.py` 中的可视化代码，对两张核心统计图表进行了完整的问题诊断、修正方案设计和效果验证，旨在为临床数据分析报告提供清晰、准确、专业的可视化范例。> **注**：`02_practice.py` 为笔者案例 2 数据分析修改后的完整代码。
 
 ---
 
@@ -62,38 +62,24 @@ if len(num_df) > 0:
 
 ### 三、原始图（问题图）
 
-以下为原始代码生成的 05a 图表数据摘要：
+以下为 05a 图表中数字特征的数据摘要（以数字特征为例）：
+| 特征 | 检验方法 | 正态性判断 | VIVO (均值) | VIVO (中位数) | MORTO (均值) | MORTO (中位数) | p值 | 效应量 |
+|------|----------|-----------|-------------|---------------|--------------|----------------|-----|--------|
+| Age | Mann-Whitney U检验 | 非正态（偏度=-0.683, p=0.0000） | 60.39 | 62.0 | 66.14 | 68.0 | 0.000000e+00 | 0.2084 |
+| Code.Profession | Mann-Whitney U检验 | 非正态（偏度=0.940, p=0.0000） | 171.81 | 0.0 | 251.06 | 0.0 | 0.000000e+00 | 0.1477 |
+| Code.of.Morphology | Mann-Whitney U检验 | 非正态（偏度=2.634） | 82658.11 | 80973.0 | 82269.73 | 80003.0 | 0.000000e+00 | 0.4677 |
+| year | Mann-Whitney U检验 | 非正态（偏度=-1.004） | 2013.80 | 2015.0 | 2011.15 | 2011.0 | 0.000000e+00 | 0.4387 |
 
-| 特征 | `-log10(p)` |
-|------|-------------|
-| Age | 1.30 |
-| Code‑profession | 1.30 |
-| Code‑of‑morphology | 1.30 |
-| year | 1.30 |
-| Gender | 1.30 |
-| Distant‑metaplasia | 1.30 |
-| Illness‑of‑disease | 1.30 |
-| Description‑of‑disease | 1.30 |
-| Morphology‑of‑disease | 1.30 |
-| Description‑of‑topography | 1.30 |
-| Topography‑of‑disease | 1.30 |
-| State‑Civil | 1.30 |
-| Extension‑means | 1.30 |
-| Disease‑cator | 1.30 |
-| Rara‑color | 1.30 |
-| Degree‑of‑education | 1.30 |
-| Childillness‑Desertification | 1.30 |
-| Nationality | 1.30 |
-| Laterality | 1.30 |
-| Type‑of‑Death | 1.30 |
+> **🔴原始图问题**：
+> 
+由于所有特征的 p 值均极小（趋近于 0），超出双精度浮点数的检测极限，Python 将 p ≈ 0 直接判为 `0`，计算 `-np.log10(0)` 得到 `0`，导致图中所有柱子高度均为 0，完全无法显示。
 
-> **🔴 原始图问题**：所有特征的 `-log10(p)` 均显示为 **1.30**（即 `-log10(0.05)`），但实际统计结果中所有这些特征的 p 值均为 `0.000000e+00`（极度显著）。这意味着原始图完全错误地暗示所有特征均不显著，与事实严重相悖。
+**本意**：p 值越小，柱子应越高，代表越显著。
 
-> **📷 原始图文件**：![05a 原始问题图](img/05a_原图.png)
+**实际**：因 p 值过小被机器判为 0，柱子全部消失，造成"所有特征均不显著"的严重误解。
 
-```text
-【此处可放置 05a_原图.png 的截图】
-```
+> **📷 原始图文件**：![05a 原始问题图](image/05a_原图.png)
+
 
 ### 四、问题诊断
 
@@ -101,10 +87,6 @@ if len(num_df) > 0:
 |:---:|---------|---------|------|
 | **A1** | **未处理 p = 0** | 实际数据中多个特征 p 值为 `0.000000e+00`，`-np.log10(0)` 结果为 `-inf` | matplotlib 无法正确绘图，可能导致柱子消失或显示异常 |
 | **A2** | **Y 轴无上限控制** | 未设置 `set_ylim()` | 当 p 值极小时，柱子高度可能超出合理范围；或在不同子图间尺度不一致，无法横向比较 |
-| **A3** | **p 值读取错误（数据流问题）** | 原始输出显示所有特征 `-log10(p) ≈ 1.30`（对应 p=0.05），但实际统计结果均为 p=0 | 图表完全错误地暗示所有特征均不显著，与事实严重不符 |
-| **A4** | **缺乏极端值提示** | 没有机制告知读者某些柱子实际高度远大于显示值 | 读者可能误以为所有特征显著性相近 |
-
-> **注**：A3 问题在修正版中已通过数据流检查修复（确保 `P_Value` 列正确传入绘图函数）。
 
 ### 五、修正方案
 
@@ -113,42 +95,170 @@ if len(num_df) > 0:
 设定 `y_max = 300`，将所有 `-log10(p) ≥ y_max` 的柱子截断至该值，并在代码中打印被截断的特征名称。
 
 ```python
+# 计算所有特征的 -log10(p)
 height_arr = -np.log10(num_plot['P_Value'].values)
+# 设定 Y 轴上限为 300
 y_max = 300
+
+# 核心：将超过上限的值截断至上限，np.where 实现条件替换
+# 若 height_arr ≥ y_max，取 y_max；否则保留原值
 height_fixed = np.where(height_arr >= y_max, y_max, height_arr)
 
-# 打印被截断的特征
+# 生成布尔掩码：标记哪些特征的 -log10(p) 超过上限
 mask = height_arr >= y_max
-if mask.any():
+# 检查是否存在被截断的特征
+if mask.any():  # any() 判断 mask 中是否有任何一个 True
     print("以下特征p趋近0，柱子已强制拉到图表最高点：")
+    # 通过布尔索引提取被截断的特征名称
     print(num_plot.loc[mask, "Feature"].tolist())
 
+# 绘制截断后的柱状图
 ax.bar(..., height_fixed)
-ax.set_ylim(0, y_max)
+
+# 绘制截断后的柱状图
+ax.bar(..., height_fixed)
+
+# 固定Y轴范围，保证最高点统一
+ax.set_ylim(bottom=0, top=y_max)
+ax.grid(axis="y", alpha=0.3)
 ```
 
 #### 2. 两个子图采用相同 Y 轴范围
 
 确保数值特征和分类特征子图的 `ylim` 完全一致，便于比较。
 
-#### 3. 修正数据流
+#### 3. Y 轴上限取 300 的理论依据
+参考几个典型 p 值的转换结果：
+| p 值 | -log10(p) | 含义 |
+|------|-----------|------|
+| 0.05 | 1.30 | 显著性阈值（α=0.05） |
+| 0.01 | 2.00 | 较强显著 |
+| 0.001 | 3.00 | 强显著 |
+| 1e-10 | 10.00 | 极强显著 |
+| 1e-50 | 50.00 | 几乎不可能由随机产生 |
+| 1e-100 | 100.00 | 极端显著 |
+| 1e-200 | 200.00 | 极度显著 |
+| **1e-300** | **300.00** | **双精度浮点数下界（取 300 的依据）** |
 
-检查 `numerical_results` 和 `categorical_results` 中 `P_Value` 的赋值逻辑，确保真实的 p 值被正确传入。
+**取 y_max = 300 的原因**：
+
+1. **双精度浮点数极限**：Python 中双精度浮点数（float64）能表示的最小正数约为 `1e-308`，对应 `-log10(1e-308) ≈ 308`。当 p 值小于该值时，机器会将 p 值下溢为 0，无法计算其对数。因此，`y_max = 300` 是浮点数精度极限下的合理上限。
+
+2. **临床解释的冗余性**：当 `-log10(p) > 100` 时，p 值已经极小（`< 1e-100`），在临床或生物学意义上，不同特征之间的显著性差异已没有实际区分的必要。300 的上限足以包容所有实际可检测的显著性差异。
+
+3. **视觉可读性**：若不对 Y 轴做截断，柱子高度差异可能跨越数个数量级（如 10 到 1e+308），导致低显著性的柱子被压缩至不可见。统一截断至 300 可在保证视觉清晰度的同时，明确标注哪些特征超越了图示上限。
 
 ### 六、修正后效果
+> **📷 修正后图文件**：![05a 修改图](image/05a_改图.png)
 
 | 方面 | 修正前 | 修正后 |
 |------|--------|--------|
-| **柱子高度** | 全部约 1.30（错误） | 正确反映 `-log10(p)`，多数柱子达到顶部 |
+| **柱子高度** | 全部约 0（错误） | 正确反映 `-log10(p)`，多数柱子达到顶部 |
 | **p=0 处理** | 出现 `-inf`，无法绘图 | 截断至 Y 轴上限，显著可见 |
 | **子图一致性** | 无统一尺度 | 两子图 Y 轴范围一致，可横向比较 |
 | **信息完整性** | 无极端值提示 | 控制台打印截断特征，辅助解读 |
 
-> **📷 修正后图文件**：`05a_pvalue_comparison.png`
+### 七、修正后完整代码
 
-```text
-【此处可放置 05a_pvalue_comparison.png 的截图】
-```
+```python
+# --- 图 5a: P-value 对比柱状图 ---
+fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+
+# 数值特征 p-value
+if len(num_df) > 0:
+    # 绘图前置
+    num_plot = num_df.sort_values('P_Value')
+    height_arr = -np.log10(num_plot['P_Value'].values)
+    # 设定画布Y轴上限（表格最高点）
+    y_max = 300
+    # 核心逻辑：p≈0则强制高度等于画布最高点
+    # np.where(条件, 满足时取值, 不满足取值)
+    height_fixed = np.where(height_arr >= y_max, y_max, height_arr)
+
+    # 可选：打印提示哪些特征被强制顶到最高
+    mask = height_arr >= y_max
+    if mask.any():
+        print("以下特征p趋近0，柱子已强制拉到图表最高点：")
+        print(num_plot.loc[mask, "Feature"].tolist())
+
+    # 绘图
+    colors_num = ['#e74c3c' if p < 0.05 else '#3498db' for p in num_plot['P_Value']]
+    ax = axes[0]
+    bars = ax.bar(
+        range(len(num_plot)),
+        height_fixed,  # 使用截断后的高度数组
+        width=0.6,
+        color=colors_num,
+        edgecolor='white'
+    )
+    # 固定Y轴范围，保证最高点统一
+    ax.set_ylim(bottom=0, top=y_max)
+    ax.grid(axis="y", alpha=0.3)
+
+    # 红线标注α=0.05
+    threshold_y = -np.log10(0.05)
+    ax.axhline(y=threshold_y, color='red', linestyle='--', linewidth=1.5,
+            label=f'α=0.05 (-log10={threshold_y:.2f})')
+
+    ax.set_xticks(range(len(num_plot)))
+    ax.set_xticklabels(num_plot['Feature'].values, rotation=30, ha='right')
+    ax.set_ylabel('-log10(p-value)', fontsize=11)
+    ax.set_title('Numerical Features: Statistical Significance', fontsize=13, fontweight='bold')
+    ax.legend(fontsize=8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+# 分类特征 p-value
+if len(cat_df) > 0:
+    # 绘图前置
+    cat_plot = cat_df.sort_values('P_Value')
+    height_arr = -np.log10(cat_plot['P_Value'].values)
+    # 设定画布Y轴上限（表格最高点）
+    y_max = 300
+    # 判定阈值：超过该值视为p≈0
+    cut_threshold = y_max
+    # 核心逻辑：p≈0则强制高度等于画布最高点
+    # np.where(条件, 满足时取值, 不满足取值)
+    height_fixed = np.where(height_arr >= cut_threshold, y_max, height_arr)
+    # 可选：打印提示哪些特征被强制顶到最高
+    mask = height_arr >= cut_threshold
+    if mask.any():
+        print("以下特征p趋近0，柱子已强制拉到图表最高点：")
+        print(cat_plot.loc[mask, "Feature"].tolist())
+
+    colors_cat = ['#e74c3c' if p < 0.05 else '#3498db' for p in cat_plot['P_Value']]
+    ax = axes[1]
+    bars = ax.bar(range(len(cat_plot)), height_fixed,
+                  color=colors_cat, edgecolor='white')
+    ax.axhline(y=-np.log10(0.05), color='red', linestyle='--', linewidth=1.5,
+               label=f'α=0.05 (-log10={-np.log10(0.05):.2f})')
+    # 固定Y轴范围，保证最高点统一
+    ax.set_ylim(bottom=0, top=y_max)
+    ax.grid(axis="y", alpha=0.3)
+    
+    ax.set_xticks(range(len(cat_plot)))
+    ax.set_xticklabels(cat_plot['Feature'].values, rotation=30, ha='right')
+    ax.set_ylabel('-log10(p-value)', fontsize=11)
+    ax.set_title('Categorical Features: Chi-square Significance', fontsize=13, fontweight='bold')
+    ax.legend(fontsize=8)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+
+plt.suptitle('Statistical Significance Overview', fontsize=14, fontweight='bold', y=1.02)
+plt.tight_layout()
+plt.savefig(os.path.join(IMG_DIR, "05a_pvalue_comparison.png"), dpi=150, bbox_inches='tight')
+# plt.close()
+print("  [图] 05a_pvalue_comparison.png → p值对比图已保存")
+
+### 八、重要说明
+
+本案例中所有特征 p 值均趋近于 0（`0.000000e+00`），根本原因是**样本量极大**——大样本下即使微小差异也极易达到极显著水平。
+
+**因此，p 值极小 ≠ 特征具有实际预测价值。**
+
+本图（05a）的修改目的**仅限于修复可视化技术问题**（因浮点数精度导致柱子无法正常显示），使图表能正确反映各特征的相对显著性排序。
+
+**关于特征实际重要性的判断**，需结合效应量综合评估，请参考**图 05c（P‑value vs 效应量散点图）**，该图同时展示统计显著性与实际显著性，两者结合方可做出合理的特征筛选。
 
 ---
 
