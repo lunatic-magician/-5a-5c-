@@ -44,7 +44,7 @@ if len(num_df) > 0:
     num_plot = num_df.sort_values('P_Value')
     colors_num = ['#e74c3c' if p < 0.05 else '#3498db' for p in num_plot['P_Value']]
     ax = axes[0]
-    bars = ax.bar(range(len(num_plot)), -np.log10(num_plot['P_Value'].values),
+    bars = ax.bar(range(len(num_plot)), -np.log10(num_plot['P_Value'].values),  # 问题就出在p值上
                   color=colors_num, edgecolor='white')
     ax.axhline(y=-np.log10(0.05), color='red', linestyle='--', linewidth=1.5,
                label=f'α=0.05 (-log10={-np.log10(0.05):.2f})')
