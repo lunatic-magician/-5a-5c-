@@ -1,7 +1,7 @@
 # 图5a和5c可视化优化  
 ## —— 图 05a（P‑value 柱状图）与图 05c（P‑value vs 效应量散点图）修正分析
 
-> 本报告基于 `02_practice.py` 中的代码，对两张核心统计图表进行了完整的问题诊断、修正方案设计和效果验证，旨在为临床数据分析报告提供清晰、准确、专业的可视化范例。> **注**：`02_practice.py` 为笔者案例 2 数据分析修改后的完整代码。
+> 本报告基于 `02_practice.py` 中的代码，对两张核心统计图表进行了完整的问题诊断、修正方案设计和效果验证，旨在为临床数据分析报告提供清晰、准确、专业的可视化范例。> **注**：`02_practice.py` 为案例 2 数据分析修改后的完整代码。
 
 ---
 
@@ -195,7 +195,7 @@ if len(all_results) >= 3:
         color = '#e74c3c' if row['Type'] == '数值型' else '#2ecc71'
         size = 80 if row['Significant_0.05'] == 'Yes' else 40
         marker = 'o' if row['Type'] == '数值型' else 's'
-        ax.scatter(row['Effect_Size'], -np.log10(row['P_Value']),
+        ax.scatter(row['Effect_Size'], -np.log10(row['P_Value']),  # 问题同样在p值上
                    c=color, s=size, marker=marker, alpha=0.7, edgecolors='gray', linewidths=0.5)
         ax.annotate(row['Feature'],
                     (row['Effect_Size'], -np.log10(row['P_Value'])),
@@ -221,6 +221,7 @@ if len(all_results) >= 3:
 |:---:|---------|---------|------|
 | **C1** | **p 值极小导致纵轴归零** | 所有 p 值趋近于 0，-np.log10(0) 被计算为 0 | 所有散点重叠在横轴上，完全无法区分各特征 |
 | **C2** | **特征多时文本标注会重叠** | 标注显示全称，特征数 > 15 时严重重叠 | 无法辨识任何标注，图表作废 |
+> **注**：在解决第一个问题（p 值归零）后，虽然散点能够正常显示，但由于本案例涉及的特征数量较多（> 20 个），直接标注特征全称会导致所有标签全部重叠在一起，图表仍然无法阅读。因此，作者对所有特征进行了数字编号，用序号代替全称进行标注，并在图例中附加序号-特征名映射表，从根本上解决了标签重叠的问题。
 
 ### 五、修正方案
 
